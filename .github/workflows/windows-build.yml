@@ -1,0 +1,15 @@
+on: [push]
+name: windows-build
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      # prepare enviroment
+      - uses: microsoft/setup-msbuild@v1
+      - run: cup anaconda3
+      - run: cup visualstudio2022community
+      - run: refreshenv && conda install -c conda-forge pyqtwebengine
+      # check out and make
+      - uses: actions/checkout@v2
+      - run: refreshenv && qmake
+      # - run: refreshenv && C:\tools\anaconda3\Library\bin\qmake.exe
