@@ -11,5 +11,7 @@ jobs:
       - run: refreshenv && conda install -c conda-forge pyqtwebengine
       # check out and make
       - uses: actions/checkout@v2
+      - run: where msbuild
+      - run: where qmake
       - run: refreshenv && qmake
       # - run: refreshenv && C:\tools\anaconda3\Library\bin\qmake.exe
