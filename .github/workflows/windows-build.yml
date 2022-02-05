@@ -25,6 +25,8 @@ jobs:
       - run: pip install PyQt5
       # - run: pip install PyQt5-tools # got error
 
+      - run: cup everything && es qmake.exe
+
       # check out and make
       - uses: actions/checkout@v2
       - run: refreshenv && qmake
