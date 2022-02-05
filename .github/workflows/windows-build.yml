@@ -19,12 +19,13 @@ jobs:
 
       # pyqt
       # - run: refreshenv && conda install -c conda-forge pyqtwebengine
-      - uses: actions/setup-python@v2
-        with:
-          python-version: "3.x"
-      - run: pip install PyQt5
+      # - uses: actions/setup-python@v2
+      #   with:
+      #     python-version: "3.x"
+      # - run: pip install PyQt5
       # - run: pip install PyQt5-tools # got error
 
+      - uses: jurplel/install-qt-action@v2
       - run: cup everything && es qmake.exe
 
       # check out and make
