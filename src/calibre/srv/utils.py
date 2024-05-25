@@ -4,7 +4,9 @@
 __license__ = 'GPL v3'
 __copyright__ = '2015, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import errno, socket, os, time
+import errno
+import os
+import socket
 from email.utils import formatdate
 from operator import itemgetter
 
@@ -12,15 +14,16 @@ from calibre import prints
 from calibre.constants import iswindows
 from calibre.srv.errors import HTTPNotFound
 from calibre.utils.localization import get_translator
-from calibre.utils.socket_inheritance import set_socket_inherit
 from calibre.utils.logging import ThreadSafeLog
 from calibre.utils.shared_file import share_open
-from polyglot.builtins import iteritems
+from calibre.utils.socket_inheritance import set_socket_inherit
 from polyglot import reprlib
+from polyglot.binary import as_hex_unicode as encode_name
+from polyglot.binary import from_hex_unicode as decode_name
+from polyglot.builtins import as_unicode, iteritems
 from polyglot.http_cookie import SimpleCookie
-from polyglot.builtins import as_unicode
-from polyglot.urllib import parse_qs, quote as urlquote
-from polyglot.binary import as_hex_unicode as encode_name, from_hex_unicode as decode_name
+from polyglot.urllib import parse_qs
+from polyglot.urllib import quote as urlquote
 
 HTTP1  = 'HTTP/1.0'
 HTTP11 = 'HTTP/1.1'
@@ -465,7 +468,3 @@ def get_use_roman():
         from calibre.gui2 import config
         _use_roman = config['use_roman_numerals_for_series_number']
     return _use_roman
-
-
-def fast_now_strftime(fmt):
-    return as_unicode(time.strftime(fmt), errors='replace')

@@ -13,13 +13,12 @@ import posixpath
 from contextlib import closing
 
 from calibre import CurrentDir
-from calibre.ebooks.metadata.opf import (
-    get_metadata as get_metadata_from_opf, set_metadata as set_metadata_opf
-)
+from calibre.ebooks.metadata.opf import get_metadata as get_metadata_from_opf
+from calibre.ebooks.metadata.opf import set_metadata as set_metadata_opf
 from calibre.ebooks.metadata.opf2 import OPF
-from calibre.utils.xml_parse import safe_xml_fromstring
 from calibre.ptempfile import TemporaryDirectory
 from calibre.utils.localunzip import LocalZipFile
+from calibre.utils.xml_parse import safe_xml_fromstring
 from calibre.utils.zipfile import BadZipfile, ZipFile, safe_replace
 
 
@@ -171,7 +170,7 @@ class OCFDirReader(OCFReader):
         super().__init__()
 
     def open(self, path):
-        return lopen(os.path.join(self.root, path), 'rb')
+        return open(os.path.join(self.root, path), 'rb')
 
     def read_bytes(self, path):
         with self.open(path) as f:
@@ -193,7 +192,7 @@ def render_cover(cpage, zf, reader=None):
             cpage = os.path.join(tdir, cpage)
             if not os.path.exists(cpage):
                 return
-            return render_html_svg_workaround(cpage, default_log)
+            return render_html_svg_workaround(cpage, default_log, root=tdir)
 
 
 def get_cover(raster_cover, first_spine_item, reader):
@@ -252,7 +251,7 @@ def set_metadata(stream, mi, apply_null=False, update_timestamp=False, force_ide
             raise Exception('no cover')
     except Exception:
         try:
-            with lopen(mi.cover, 'rb') as f:
+            with open(mi.cover, 'rb') as f:
                 new_cdata = f.read()
         except Exception:
             pass

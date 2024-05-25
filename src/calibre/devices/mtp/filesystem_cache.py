@@ -5,18 +5,33 @@ __license__   = 'GPL v3'
 __copyright__ = '2012, Kovid Goyal <kovid at kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
-import weakref, sys, json
+import json
+import sys
+import time
+import weakref
 from collections import deque
-from operator import attrgetter
-from polyglot.builtins import itervalues
 from datetime import datetime
+from itertools import chain
+from operator import attrgetter
 
-from calibre import human_readable, prints, force_unicode
-from calibre.utils.date import local_tz, as_utc
-from calibre.utils.icu import sort_key, lower
+from calibre import force_unicode, human_readable, prints
 from calibre.ebooks import BOOK_EXTENSIONS
+from calibre.utils.date import as_utc, local_tz
+from calibre.utils.icu import lower, sort_key
+from polyglot.builtins import itervalues
 
 bexts = frozenset(BOOK_EXTENSIONS) - {'mbp', 'tan', 'rar', 'zip', 'xml'}
+
+
+class ListEntry:
+
+    def __init__(self, entry: 'FileOrFolder'):
+        self.is_dir = entry.is_folder
+        self.is_readonly = not entry.can_delete
+        self.path = '/'.join(entry.full_path)
+        self.name = entry.name
+        self.size = entry.size
+        self.ctime = self.wtime = time.mktime(entry.last_modified.timetuple())
 
 
 class FileOrFolder:
@@ -66,8 +81,9 @@ class FileOrFolder:
         if self.storage_id == self.object_id:
             self.storage_prefix = 'mtp:::%s:::'%self.persistent_id
 
+        # Ignore non ebook files and AppleDouble files
         self.is_ebook = (not self.is_folder and
-                self.name.rpartition('.')[-1].lower() in bexts)
+                self.name.rpartition('.')[-1].lower() in bexts and not self.name.startswith('._'))
 
     def __repr__(self):
         name = 'Folder' if self.is_folder else 'File'
@@ -95,6 +111,10 @@ class FileOrFolder:
     @property
     def parent(self):
         return None if self.parent_id is None else self.id_map[self.parent_id]
+
+    @property
+    def storage(self):
+        return self.fs_cache().storage(self.storage_id)
 
     @property
     def full_path(self):
@@ -135,6 +155,17 @@ class FileOrFolder:
         for c in (self.folders, self.files):
             for e in sorted(c, key=lambda x:sort_key(x.name)):
                 e.dump(prefix=prefix+'  ', out=out)
+
+    def list(self, recurse=False):
+        if not self.is_folder:
+            parent = self.id_map[self.parent_id]
+            yield '/'.join(parent.full_path[1:]), ListEntry(self)
+            return
+        entries = [ListEntry(x) for x in chain(self.folders, self.files)]
+        yield '/'.join(self.full_path[1:]), entries
+        if recurse:
+            for x in self.folders:
+                yield from x.list(recurse=True)
 
     def folder_named(self, name):
         name = lower(name)

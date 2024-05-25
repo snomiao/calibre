@@ -7,7 +7,8 @@ __docformat__ = 'restructuredtext en'
 
 import re
 from math import ceil
-from calibre.ebooks.conversion.preprocess import DocAnalysis, Dehyphenator
+
+from calibre.ebooks.conversion.preprocess import Dehyphenator, DocAnalysis
 from calibre.utils.logging import default_log
 from calibre.utils.wordcount import get_wordcount_obj
 
@@ -365,7 +366,7 @@ class HeuristicProcessor:
 
         # define the pieces of the regex
         # (?<!\&\w{4});) is a semicolon not part of an entity
-        lookahead = "(?<=.{"+str(length)+r"}([a-zა-ჰäëïöüàèìòùáćéíĺóŕńśúýâêîôûçąężıãõñæøþðßěľščťžňďřů,:)\\IAß]|(?<!\&\w{4});))"
+        lookahead = "(?<=.{"+str(length)+r"}([a-zა-ჰäëïöüàèìòùáćéíĺóŕńśúýźâêîôûçąężłıãõñæøþðßěľščťžňďřůёђєіїјљњћўџѣа-я,:)\\IAß]|(?<!\&\w{4});))"
         em_en_lookahead = "(?<=.{"+str(length)+"}[\u2013\u2014])"
         soft_hyphen = "\xad"
         line_ending = "\\s*(?P<style_close></(span|[iub])>)?\\s*(</(p|div)>)?"

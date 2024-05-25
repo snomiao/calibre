@@ -7,9 +7,9 @@ __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.customize.conversion import InputFormatPlugin, OptionRecommendation
-from calibre.constants import numeric_version
 from calibre import walk
+from calibre.constants import numeric_version
+from calibre.customize.conversion import InputFormatPlugin, OptionRecommendation
 
 
 class RecipeDisabled(Exception):
@@ -58,19 +58,20 @@ class RecipeInput(InputFormatPlugin):
             accelerators):
         from calibre.web.feeds.recipes import compile_recipe
         opts.output_profile.flow_size = 0
+        orig_no_inline_navbars = opts.no_inline_navbars
         if file_ext == 'downloaded_recipe':
             from calibre.utils.zipfile import ZipFile
             zf = ZipFile(recipe_or_file, 'r')
             zf.extractall()
             zf.close()
-            with lopen('download.recipe', 'rb') as f:
+            with open('download.recipe', 'rb') as f:
                 self.recipe_source = f.read()
             recipe = compile_recipe(self.recipe_source)
             recipe.needs_subscription = False
             self.recipe_object = recipe(opts, log, self.report_progress)
         else:
             if os.environ.get('CALIBRE_RECIPE_URN'):
-                from calibre.web.feeds.recipes.collection import get_custom_recipe, get_builtin_recipe_by_id
+                from calibre.web.feeds.recipes.collection import get_builtin_recipe_by_id, get_custom_recipe
                 urn = os.environ['CALIBRE_RECIPE_URN']
                 log('Downloading recipe urn: ' + urn)
                 rtype, recipe_id = urn.partition(':')[::2]
@@ -86,13 +87,12 @@ class RecipeInput(InputFormatPlugin):
                     self.recipe_source = self.recipe_source.encode('utf-8')
                 recipe = compile_recipe(self.recipe_source)
             elif os.access(recipe_or_file, os.R_OK):
-                with lopen(recipe_or_file, 'rb') as f:
+                with open(recipe_or_file, 'rb') as f:
                     self.recipe_source = f.read()
                 recipe = compile_recipe(self.recipe_source)
                 log('Using custom recipe')
             else:
-                from calibre.web.feeds.recipes.collection import (
-                        get_builtin_recipe_by_title, get_builtin_recipe_titles)
+                from calibre.web.feeds.recipes.collection import get_builtin_recipe_by_title, get_builtin_recipe_titles
                 title = getattr(opts, 'original_recipe_input_arg', recipe_or_file)
                 title = os.path.basename(title).rpartition('.')[0]
                 titles = frozenset(get_builtin_recipe_titles())
@@ -133,12 +133,17 @@ class RecipeInput(InputFormatPlugin):
             disabled = getattr(recipe, 'recipe_disabled', None)
             if disabled is not None:
                 raise RecipeDisabled(disabled)
-            ro = recipe(opts, log, self.report_progress)
-            ro.download()
+            try:
+                ro = recipe(opts, log, self.report_progress)
+                ro.download()
+            finally:
+                from calibre.scraper.simple import cleanup_overseers
+                cleanup_overseers()
             self.recipe_object = ro
 
         for key, val in self.recipe_object.conversion_options.items():
             setattr(opts, key, val)
+        opts.no_inline_navbars = orig_no_inline_navbars
 
         for f in os.listdir('.'):
             if f.endswith('.opf'):

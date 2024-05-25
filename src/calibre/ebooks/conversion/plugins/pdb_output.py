@@ -4,9 +4,8 @@ __docformat__ = 'restructuredtext en'
 
 import os
 
-from calibre.customize.conversion import OutputFormatPlugin, \
-    OptionRecommendation
-from calibre.ebooks.pdb import PDBError, get_writer, ALL_FORMAT_WRITERS
+from calibre.customize.conversion import OptionRecommendation, OutputFormatPlugin
+from calibre.ebooks.pdb import ALL_FORMAT_WRITERS, PDBError, get_writer
 
 
 class PDBOutput(OutputFormatPlugin):
@@ -38,7 +37,7 @@ class PDBOutput(OutputFormatPlugin):
             close = True
             if not os.path.exists(os.path.dirname(output_path)) and os.path.dirname(output_path):
                 os.makedirs(os.path.dirname(output_path))
-            out_stream = lopen(output_path, 'wb')
+            out_stream = open(output_path, 'wb')
         else:
             out_stream = output_path
 

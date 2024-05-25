@@ -6,8 +6,7 @@ __copyright__ = '2009, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 
-from qt.core import QVBoxLayout, QDialog, QLabel, QDialogButtonBox, Qt, \
-        QAbstractListModel, QListView, QSize, QApplication, QAbstractItemView
+from qt.core import QAbstractItemView, QAbstractListModel, QApplication, QDialog, QDialogButtonBox, QLabel, QListView, QSize, Qt, QVBoxLayout
 
 from calibre.gui2 import file_icon_provider
 
@@ -62,11 +61,7 @@ class SelectFormats(QDialog):
         self.fview.doubleClicked.connect(self.double_clicked,
                 type=Qt.ConnectionType.QueuedConnection)
         if exclude:
-            if QApplication.instance().is_dark_theme:
-                sheet = 'background-color: #DAA520; color: black'
-            else:
-                sheet = 'background-color: #fae7b5'
-            self.fview.setStyleSheet('QListView { %s }' % sheet)
+            self.fview.setStyleSheet(f'QListView {{ background-color: {QApplication.instance().emphasis_window_background_color} }}')
         self._l.addWidget(self.fview)
         self.fview.setModel(self.formats)
         self.fview.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection if single else

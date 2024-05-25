@@ -2,21 +2,39 @@
 # License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
 
 
-import os, string, re, sys, errno
-from collections import namedtuple, defaultdict
-from operator import itemgetter
+import errno
+import os
+import re
+import string
+from collections import defaultdict, namedtuple
 from ctypes import (
-    Structure, POINTER, c_ubyte, windll, byref, c_void_p, WINFUNCTYPE, c_uint,
-    WinError, get_last_error, sizeof, c_wchar, create_string_buffer, cast,
-    memset, wstring_at, addressof, create_unicode_buffer, string_at, c_uint64 as QWORD
+    POINTER,
+    WINFUNCTYPE,
+    Structure,
+    WinError,
+    addressof,
+    byref,
+    c_ubyte,
+    c_uint,
+    c_void_p,
+    c_wchar,
+    cast,
+    create_string_buffer,
+    create_unicode_buffer,
+    get_last_error,
+    memset,
+    sizeof,
+    string_at,
+    windll,
+    wstring_at,
 )
-from ctypes.wintypes import DWORD, WORD, ULONG, LPCWSTR, HWND, BOOL, LPWSTR, UINT, BYTE, HANDLE, USHORT
-from pprint import pprint, pformat
+from ctypes import c_uint64 as QWORD
+from ctypes.wintypes import BOOL, BYTE, DWORD, HANDLE, HWND, LPCWSTR, LPWSTR, UINT, ULONG, USHORT, WORD
+from operator import itemgetter
+from pprint import pformat, pprint
+
+from calibre import as_unicode, prints
 from polyglot.builtins import iteritems, itervalues
-
-from calibre import prints, as_unicode
-
-is64bit = sys.maxsize > (1 << 32)
 
 try:
     import winreg
@@ -622,7 +640,7 @@ def get_device_interface_detail_data(dev_list, p_interface_data, buf=None):
     detail = cast(buf, PSP_DEVICE_INTERFACE_DETAIL_DATA)
     # See http://stackoverflow.com/questions/10728644/properly-declare-sp-device-interface-detail-data-for-pinvoke
     # for why cbSize needs to be hardcoded below
-    detail.contents.cbSize = 8 if is64bit else 6
+    detail.contents.cbSize = 8
     required_size = DWORD(0)
     devinfo = SP_DEVINFO_DATA()
     devinfo.cbSize = sizeof(devinfo)
@@ -632,7 +650,7 @@ def get_device_interface_detail_data(dev_list, p_interface_data, buf=None):
             if err == ERROR_INSUFFICIENT_BUFFER:
                 buf = create_string_buffer(required_size.value + 50)
                 detail = cast(buf, PSP_DEVICE_INTERFACE_DETAIL_DATA)
-                detail.contents.cbSize = 8 if is64bit else 6
+                detail.contents.cbSize = 8
                 continue
             raise WinError(err)
         break

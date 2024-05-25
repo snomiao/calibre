@@ -4,17 +4,20 @@
 __license__ = 'GPL v3'
 __copyright__ = '2013, Kovid Goyal <kovid at kovidgoyal.net>'
 
-import shutil, os, errno
+import errno
+import os
+import shutil
+import stat
 from threading import Thread
 
-from qt.core import (QObject, pyqtSignal, QLabel, QWidget, QHBoxLayout, Qt, QSize)
+from qt.core import QHBoxLayout, QLabel, QObject, QSize, Qt, QWidget, pyqtSignal
 
 from calibre.constants import iswindows
-from calibre.ptempfile import PersistentTemporaryFile
 from calibre.gui2.progress_indicator import ProgressIndicator
+from calibre.ptempfile import PersistentTemporaryFile
 from calibre.utils import join_with_timeout
 from calibre.utils.filenames import atomic_rename, format_permissions
-from polyglot.queue import LifoQueue, Empty
+from polyglot.queue import Empty, LifoQueue
 
 
 def save_dir_container(container, path):
@@ -49,7 +52,7 @@ def save_container(container, path):
                 # Somebody deleted the original file
         if st is not None:
             try:
-                os.fchmod(fno, st.st_mode)
+                os.fchmod(fno, st.st_mode | stat.S_IWUSR)
             except OSError as err:
                 if err.errno != errno.EPERM:
                     raise

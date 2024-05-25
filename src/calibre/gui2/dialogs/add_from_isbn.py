@@ -6,10 +6,8 @@ __copyright__ = '2010, Kovid Goyal <kovid@kovidgoyal.net>'
 __docformat__ = 'restructuredtext en'
 
 import os
-from qt.core import (
-    QApplication, QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QIcon, QLabel,
-    QLineEdit, QPlainTextEdit, QPushButton, Qt, QVBoxLayout
-)
+
+from qt.core import QApplication, QCheckBox, QDialog, QDialogButtonBox, QHBoxLayout, QIcon, QLabel, QLineEdit, QPlainTextEdit, QPushButton, Qt, QVBoxLayout
 
 from calibre.constants import iswindows
 from calibre.ebooks.metadata import check_isbn
@@ -33,7 +31,7 @@ class AddFromISBN(QDialog):
     def setup_ui(self):
         self.resize(678, 430)
         self.setWindowTitle(_("Add books by ISBN"))
-        self.setWindowIcon(QIcon(I('add_book.png')))
+        self.setWindowIcon(QIcon.ic('add_book.png'))
         self.l = l = QVBoxLayout(self)
         self.h = h = QHBoxLayout()
         l.addLayout(h)
@@ -55,7 +53,11 @@ class AddFromISBN(QDialog):
             "<p>Any invalid ISBNs in the list will be ignored.</p>\n"
             "<p>You can also specify a file that will be added with each ISBN. To do this enter the full"
             " path to the file after a <code>&gt;&gt;</code>. For example:</p>\n"
-            "<p><code>9788842915232 &gt;&gt; %s</code></p>"), self)
+            "<p><code>9788842915232 &gt;&gt; %s</code></p>"
+            "<p>To use identifiers other than ISBN use key:value syntax, For example:</p>\n"
+            "<p><code>amazon:B001JK9C72</code></p>"
+        ), self)
+
         l.addWidget(la), la.setWordWrap(True)
         l.addSpacing(20)
         self.la2 = la = QLabel(_("&Tags to set on created book entries:"), self)
@@ -100,18 +102,26 @@ class AddFromISBN(QDialog):
             parts = [x.strip() for x in parts]
             if not parts[0]:
                 continue
-            isbn = check_isbn(parts[0])
-            if isbn is not None:
-                isbn = isbn.upper()
-                if isbn not in self.isbns:
-                    self.isbns.append(isbn)
-                    book = {'isbn': isbn, 'path': None}
-                    if len(parts) > 1 and parts[1] and \
-                        os.access(parts[1], os.R_OK) and os.path.isfile(parts[1]):
-                        book['path'] = parts[1]
-                    self.books.append(book)
+            if ':' in parts[0]:
+                prefix, val = parts[0].partition(':')[::2]
             else:
-                bad.add(parts[0])
+                prefix, val = 'isbn', parts[0]
+            path = None
+            if len(parts) > 1 and parts[1] and os.access(parts[1], os.R_OK) and os.path.isfile(parts[1]):
+                path = parts[1]
+
+            if prefix == 'isbn':
+                isbn = check_isbn(parts[0])
+                if isbn is not None:
+                    isbn = isbn.upper()
+                    if isbn not in self.isbns:
+                        self.isbns.append(isbn)
+                        self.books.append({'isbn': isbn, 'path': path, '': 'isbn'})
+                else:
+                    bad.add(parts[0])
+            else:
+                if prefix != 'path':
+                    self.books.append({prefix: val, 'path': path, '':prefix})
         if bad:
             if self.books:
                 if not question_dialog(self, _('Some invalid ISBNs'),

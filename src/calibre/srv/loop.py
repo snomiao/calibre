@@ -11,8 +11,9 @@ import socket
 import ssl
 import traceback
 from contextlib import suppress
-from functools import partial
+from functools import lru_cache, partial
 from io import BytesIO
+from typing import Union
 
 from calibre import as_unicode
 from calibre.constants import iswindows
@@ -22,12 +23,20 @@ from calibre.srv.jobs import JobsManager
 from calibre.srv.opts import Options
 from calibre.srv.pool import PluginPool, ThreadPool
 from calibre.srv.utils import (
-    DESIRED_SEND_BUFFER_SIZE, HandleInterrupt, create_sock_pair, socket_errors_eintr,
-    socket_errors_nonblocking, socket_errors_socket_closed, start_cork, stop_cork
+    DESIRED_SEND_BUFFER_SIZE,
+    HandleInterrupt,
+    create_sock_pair,
+    socket_errors_eintr,
+    socket_errors_nonblocking,
+    socket_errors_socket_closed,
+    start_cork,
+    stop_cork,
 )
+from calibre.utils.localization import _
 from calibre.utils.logging import ThreadSafeLog
 from calibre.utils.mdns import get_external_ip
 from calibre.utils.monotonic import monotonic
+from calibre.utils.network import get_fallback_server_addr
 from calibre.utils.socket_inheritance import set_socket_inherit
 from polyglot.builtins import iteritems
 from polyglot.queue import Empty, Full
@@ -142,6 +151,7 @@ def parse_trusted_ips(spec):
 
 
 def is_ip_trusted(remote_addr, trusted_ips):
+    remote_addr = getattr(remote_addr, 'ipv4_mapped', None) or remote_addr
     for tip in trusted_ips:
         if hasattr(tip, 'hosts'):
             if remote_addr in tip:
@@ -150,6 +160,15 @@ def is_ip_trusted(remote_addr, trusted_ips):
             if tip == remote_addr:
                 return True
     return False
+
+
+def is_local_address(addr: Union[ipaddress.IPv4Address, ipaddress.IPv6Address, None]):
+    if addr is None:
+        return False
+    if addr.is_loopback:
+        return True
+    ipv4_mapped = getattr(addr, 'ipv4_mapped', None)
+    return getattr(ipv4_mapped, 'is_loopback', False)
 
 
 class Connection:  # {{{
@@ -163,9 +182,9 @@ class Connection:  # {{{
         except Exception:
             # In case addr is None, which can occasionally happen
             self.remote_addr = self.remote_port = self.parsed_remote_addr = None
-        self.is_trusted_ip = bool(self.opts.local_write and getattr(self.parsed_remote_addr, 'is_loopback', False))
+        self.is_trusted_ip = bool(self.opts.local_write and is_local_address(self.parsed_remote_addr))
         if not self.is_trusted_ip and self.opts.trusted_ips and self.parsed_remote_addr is not None:
-            self.is_trusted_ip = is_ip_trusted(self.parsed_remote_addr, self.opts.trusted_ips)
+            self.is_trusted_ip = is_ip_trusted(self.parsed_remote_addr, parsed_trusted_ips(self.opts.trusted_ips))
         self.orig_send_bufsize = self.send_bufsize = 4096
         self.tdir = tdir
         self.wait_for = READ
@@ -367,6 +386,11 @@ class Connection:  # {{{
 # }}}
 
 
+@lru_cache(maxsize=2)
+def parsed_trusted_ips(raw):
+    return tuple(parse_trusted_ips(raw)) if raw else ()
+
+
 class ServerLoop:
 
     LISTENING_MSG = 'calibre server listening on'
@@ -386,8 +410,6 @@ class ServerLoop:
         self.ready = False
         self.handler = handler
         self.opts = opts or Options()
-        if self.opts.trusted_ips:
-            self.opts.trusted_ips = tuple(parse_trusted_ips(self.opts.trusted_ips))
         self.log = log or ThreadSafeLog(level=ThreadSafeLog.DEBUG)
         self.jobs_manager = JobsManager(self.opts, self.log)
         self.access_log = access_log
@@ -395,7 +417,7 @@ class ServerLoop:
         ba = (self.opts.listen_on, int(self.opts.port))
         if not ba[0]:
             # AI_PASSIVE does not work with host of '' or None
-            ba = ('0.0.0.0', ba[1])
+            ba = (get_fallback_server_addr(), ba[1])
         self.bind_address = ba
         self.bound_address = None
         self.connection_map = {}
@@ -407,6 +429,7 @@ class ServerLoop:
             self.ssl_context.set_servername_callback(self.on_ssl_servername)
 
         self.pre_activated_socket = None
+        self.socket_was_preactivated = False
         if self.opts.allow_socket_preallocation:
             from calibre.srv.pre_activated import pre_activated_socket
             self.pre_activated_socket = pre_activated_socket()
@@ -483,6 +506,7 @@ class ServerLoop:
 
     def initialize_socket(self):
         if self.pre_activated_socket is None:
+            self.socket_was_preactivated = False
             try:
                 self.do_bind()
             except OSError as err:
@@ -497,20 +521,26 @@ class ServerLoop:
                 self.do_bind()
         else:
             self.socket = self.pre_activated_socket
+            self.socket_was_preactivated = True
             self.pre_activated_socket = None
             self.setup_socket()
 
     def serve(self):
+        from calibre.utils.network import format_addr_for_url
+
         self.connection_map = {}
-        self.socket.listen(min(socket.SOMAXCONN, 128))
+        if not self.socket_was_preactivated:
+            self.socket.listen(min(socket.SOMAXCONN, 128))
         self.bound_address = ba = self.socket.getsockname()
+        ba_str = ''
         if isinstance(ba, tuple):
-            ba = ':'.join(map(str, ba))
+            addr = format_addr_for_url(str(ba[0]))
+            ba_str = f'{addr}:{ba[1]}'
         self.pool.start()
         with TemporaryDirectory(prefix='srv-') as tdir:
             self.tdir = tdir
             if self.LISTENING_MSG:
-                self.log(self.LISTENING_MSG, ba)
+                self.log(self.LISTENING_MSG, ba_str)
             self.plugin_pool.start()
             self.ready = True
 

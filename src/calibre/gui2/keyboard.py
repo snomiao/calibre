@@ -7,20 +7,48 @@ __docformat__ = 'restructuredtext en'
 
 from collections import OrderedDict
 from functools import partial
-from gettext import pgettext
 
-from qt.core import (QObject, QKeySequence, QAbstractItemModel, QModelIndex, QItemSelectionModel,
-        Qt, QStyledItemDelegate, QTextDocument, QStyle, pyqtSignal, QFrame, QAbstractItemView, QMenu,
-        QApplication, QSize, QRectF, QWidget, QTreeView, QHBoxLayout, QVBoxLayout, QAbstractItemDelegate,
-        QGridLayout, QLabel, QRadioButton, QPushButton, QToolButton, QIcon, QEvent, sip)
+from qt.core import (
+    QAbstractItemDelegate,
+    QAbstractItemModel,
+    QAbstractItemView,
+    QApplication,
+    QEvent,
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QIcon,
+    QItemSelectionModel,
+    QKeyCombination,
+    QKeySequence,
+    QLabel,
+    QMenu,
+    QModelIndex,
+    QObject,
+    QPushButton,
+    QRadioButton,
+    QRectF,
+    QSize,
+    QStyle,
+    QStyledItemDelegate,
+    Qt,
+    QTextDocument,
+    QToolButton,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+    pyqtSignal,
+    sip,
+)
 
-from calibre.utils.config import JSONConfig
+from calibre import prepare_string_for_xml, prints
 from calibre.constants import DEBUG
-from calibre import prints, prepare_string_for_xml
-from calibre.utils.icu import sort_key, lower
 from calibre.gui2 import error_dialog, info_dialog
-from calibre.utils.search_query_parser import SearchQueryParser, ParseException
 from calibre.gui2.search_box import SearchBox2
+from calibre.utils.config import JSONConfig
+from calibre.utils.icu import lower, sort_key
+from calibre.utils.localization import pgettext
+from calibre.utils.search_query_parser import ParseException, SearchQueryParser
 from polyglot.builtins import iteritems, itervalues
 
 ROOT = QModelIndex()
@@ -31,7 +59,7 @@ class NameConflict(ValueError):
 
 
 def keysequence_from_event(ev):  # {{{
-    k, mods = ev.key(), ev.modifiers()
+    k, mods = ev.keyCombination().key(), ev.modifiers()
     if k in (
             0, Qt.Key.Key_unknown, Qt.Key.Key_Shift, Qt.Key.Key_Control, Qt.Key.Key_Alt,
             Qt.Key.Key_Meta, Qt.Key.Key_AltGr, Qt.Key.Key_CapsLock, Qt.Key.Key_NumLock,
@@ -42,7 +70,7 @@ def keysequence_from_event(ev):  # {{{
         # Something like Shift+* or Shift+> we have to remove the shift,
         # since it is included in keycode.
         mods = mods & ~Qt.KeyboardModifier.ShiftModifier
-    return QKeySequence(k | int(mods))
+    return QKeySequence(QKeyCombination(mods, k))
 # }}}
 
 
@@ -50,7 +78,7 @@ def finalize(shortcuts, custom_keys_map={}):  # {{{
     '''
     Resolve conflicts and assign keys to every action in shortcuts, which must
     be a OrderedDict. User specified mappings of unique names to keys (as a
-    list of strings) should be passed in in custom_keys_map. Return a mapping
+    list of strings) should be passed in custom_keys_map. Return a mapping
     of unique names to resolved keys. Also sets the set_to_default member
     correctly for each shortcut.
     '''
@@ -423,7 +451,7 @@ class Editor(QFrame):  # {{{
             button.installEventFilter(self)
             setattr(self, 'button%d'%which, button)
             clear = QToolButton(self)
-            clear.setIcon(QIcon(I('clear_left.png')))
+            clear.setIcon(QIcon.ic('clear_left.png'))
             clear.clicked.connect(partial(self.clear_clicked, which=which))
             setattr(self, 'clear%d'%which, clear)
             l.addWidget(button, off+which, 1, 1, 1)
@@ -671,8 +699,8 @@ class ShortcutConfig(QWidget):  # {{{
         self._h = h = QHBoxLayout()
         l.addLayout(h)
         h.addWidget(self.search)
-        self.nb = QPushButton(QIcon(I('arrow-down.png')), _('&Next'), self)
-        self.pb = QPushButton(QIcon(I('arrow-up.png')), _('&Previous'), self)
+        self.nb = QPushButton(QIcon.ic('arrow-down.png'), _('&Next'), self)
+        self.pb = QPushButton(QIcon.ic('arrow-up.png'), _('&Previous'), self)
         self.nb.clicked.connect(self.find_next)
         self.pb.clicked.connect(self.find_previous)
         h.addWidget(self.nb), h.addWidget(self.pb)
@@ -680,8 +708,8 @@ class ShortcutConfig(QWidget):  # {{{
 
     def show_context_menu(self, pos):
         menu = QMenu(self)
-        menu.addAction(_('Expand all'), self.view.expandAll)
-        menu.addAction(_('Collapse all'), self.view.collapseAll)
+        menu.addAction(QIcon.ic('plus.png'), _('Expand all'), self.view.expandAll)
+        menu.addAction(QIcon.ic('minus.png'), _('Collapse all'), self.view.collapseAll)
         menu.exec(self.view.mapToGlobal(pos))
 
     def restore_defaults(self):

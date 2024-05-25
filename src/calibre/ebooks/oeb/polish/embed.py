@@ -12,6 +12,7 @@ from lxml import etree
 from calibre import prints
 from calibre.ebooks.oeb.base import XHTML
 from calibre.utils.filenames import ascii_filename
+from calibre.utils.icu import lower as icu_lower
 from polyglot.builtins import iteritems, itervalues, string_or_bytes
 
 props = {'font-family':None, 'font-weight':'normal', 'font-style':'normal', 'font-stretch':'normal'}
@@ -163,7 +164,7 @@ def embed_font(container, font, all_font_rules, report, warned):
     if not isinstance(ff, string_or_bytes):
         ff = ff[0]
     if rule is None:
-        from calibre.utils.fonts.scanner import font_scanner, NoFonts
+        from calibre.utils.fonts.scanner import NoFonts, font_scanner
         if ff in warned:
             return
         try:
@@ -247,7 +248,13 @@ def embed_all_fonts(container, stats, report):
     # Add link to CSS in all files that need it
     for spine_name in modified:
         root = container.parsed(spine_name)
-        head = root.xpath('//*[local-name()="head"][1]')[0]
+        try:
+            head = root.xpath('//*[local-name()="head"][1]')[0]
+        except IndexError:
+            head = root.makeelement(XHTML('head'))
+            root.insert(0, head)
+            head.tail = '\n'
+            head.text = '\n  '
         href = container.name_to_href(name, spine_name)
         etree.SubElement(head, XHTML('link'), rel='stylesheet', type='text/css', href=href).tail = '\n'
         container.dirty(spine_name)

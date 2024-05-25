@@ -3,6 +3,7 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+
 __license__ = 'GPL v3'
 __copyright__ = '2008-2016, Darko Miletic <darko.miletic at gmail.com>'
 '''
@@ -90,7 +91,7 @@ class Clarin(BasicNewsRecipe):
 
     remove_attributes = ['lang']
 
-    # Images on hightlights view
+    # Images on highlights view
     def populate_article_metadata(self, article, soup, first):
         if first and hasattr(self, 'add_toc_thumbnail'):
             picdiv = soup.find('img')
